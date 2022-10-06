@@ -1,4 +1,4 @@
-﻿#include "NTFS.h"
+#include "NTFS.h"
 
 bool ReadSector(LPCWSTR  drive, int readPoint, BYTE sector[512])
 {
@@ -34,101 +34,88 @@ bool ReadSector(LPCWSTR  drive, int readPoint, BYTE sector[512])
     }
 }
 
-string convertByteToHex(BYTE byte) {
-    stringstream sstream;
-    sstream << std::hex << (int)byte;
-    string result = sstream.str();
-    if (result.length() == 1)
-        result = "0" + result;
-    return result;
+void Print_Sector(BYTE sector[512])
+{
+    int count = 0;
+    int num = 0;
+
+    cout << "         0  1  2  3  4  5  6  7    8  9  A  B  C  D  E  F" << endl;
+
+    cout << "0x0" << num << "0  ";
+    bool flag = 0;
+    for (int i = 0; i < 512; i++)
+    {
+        count++;
+        if (i % 8 == 0) cout << "  ";
+        printf("%02X ", sector[i]);
+
+        if (i == 255)
+        {
+            flag = 1;
+            num = 0;
+        }
+
+        if (i == 511) break;
+
+        if (count == 16)
+        {
+            int index = i;
+
+            cout << endl;
+
+            if (flag == 0)
+            {
+                num++;
+                if (num < 10)
+                    cout << "0x0" << num << "0  ";
+                else
+                {
+                    char hex = char(num - 10 + 'A');
+                    cout << "0x0" << hex << "0  ";
+                }
+
+            }
+            else
+            {
+                if (num < 10)
+                    cout << "0x1" << num << "0  ";
+                else
+                {
+                    char hex = char(num - 10 + 'A');
+                    cout << "0x1" << hex << "0  ";
+                }
+                num++;
+            }
+
+            count = 0;
+        }
+    }
+    cout << endl;
 }
 
-int convertHexToDec(string hexVal)
+// Lấy number bytes từ vị trí offset
+int64_t Get_Bytes(BYTE* sector, int offset, int number)
 {
-    int len = hexVal.size();
-    int base = 1;
-    int dec_val = 0;
-
-    for (int i = len - 1; i >= 0; i--) {
-
-        if (hexVal[i] >= '0' && hexVal[i] <= '9') {
-            dec_val += (int(hexVal[i]) - 48) * base;
-            base = base * 16;
-        }
-
-        else if (hexVal[i] >= 'A' && hexVal[i] <= 'F') {
-            dec_val += (int(hexVal[i]) - 55) * base;
-            base = base * 16;
-        }
-        else if (hexVal[i] >= 'a' && hexVal[i] <= 'f') {
-            dec_val += (int(hexVal[i]) - 87) * base;
-            base = base * 16;
-        }
-
-    }
-    return dec_val;
+    int64_t k = 0;
+    memcpy(&k, sector + offset, number);
+    return k;
 }
 
-void infoNTFS()
+void Read_BPB(BYTE* sector, LPCWSTR disk)
 {
-    PartitionBootSector PBS;
-    BYTE* sector = new BYTE[512];
-    string* HSector = new string[512]; //Mảng lưu thông tin sector dạng hexa
-    string temp;
+    unsigned int bytes_per_sector = Get_Bytes(sector, 0x0B, 2); // Bytes Per Sector
+    unsigned int sectors_per_cluster = Get_Bytes(sector, 0x0D, 1); // Sectors Per Cluster
+    unsigned int sectors_per_track = Get_Bytes(sector, 0x18, 2); // Sectors Per Track
+    unsigned int total_sectors = Get_Bytes(sector, 0x28, 8); // Total Sectors
+    unsigned int MFTStart = Get_Bytes(sector, 0x30, 8); // Cluster start of MFT
+    unsigned int MFTMirrorStart = Get_Bytes(sector, 0x38, 8); // Cluster start of MFTMirror
 
-    ReadSector(L"\\\\.\\D:", 0, sector);
-
-    //Chuyển mảng sector thành mảng hex lưu trong HSector
-    for (int i = 0; i < 512; i++) {
-        HSector[i] = convertByteToHex(sector[i]);
-    }
-
-    cout << "Doc thong tin phan vung NTFS" << endl;
-
-    //OS Version
-    for (int i = 3; i < 11; i++) {
-        PBS.OEM_ID[i - 3] = sector[i];
-    }
-    PBS.OEM_ID[8] = '\0';
-    cout << "+ OEM/Name of management system: " << PBS.OEM_ID << endl;
-
-    //Số byte trên một sector
-    temp = HSector[12] + HSector[11];
-    PBS.Byte_Per_Sector = convertHexToDec(temp);
-    cout << "+ So byte tren moi sector la: 0x" << temp << " = " << PBS.Byte_Per_Sector << " byte" << endl;
-
-    //Số sector trên một cluster
-    temp = HSector[13];
-    PBS.Sector_Per_Cluster = convertHexToDec(temp);
-    cout << "+ So sector tren moi cluster la: 0x" << temp << " = " << PBS.Sector_Per_Cluster << " sector" << endl;
-
-    //Số sector trên một track
-    temp = HSector[25] + HSector[24];
-    PBS.SectorPerTrack = convertHexToDec(temp);
-    cout << "+ So sector tren mot track la: 0x" << temp << " = " << PBS.SectorPerTrack << " sector" << endl;
-
-    //Số mặt đĩa
-    temp = HSector[27] + HSector[26];
-    PBS.NumberOfHead = convertHexToDec(temp);
-    cout << "+ So head(side) la: 0x" << temp << " = " << PBS.NumberOfHead << endl;
-
-    //Cluster bắt đầu của MFT
-    for (int i = 54; i >= 48; i--)
-        temp = temp + HSector[i];
-    PBS.StartClusterOfMFT = convertHexToDec(temp);
-    cout << "+ Cluster bat dau MFT la: 0x" << temp << " = " << PBS.StartClusterOfMFT << endl;
-
-    //Kích thước mỗi bản ghi trong MFT
-    temp = HSector[64];
-    PBS.MFT_entry_size = convertHexToDec(temp);
-    cout << "+ Kich thuoc moi ban ghi trong MFT la: 0x" << temp << " = " << PBS.MFT_entry_size << " byte" << endl;
-
-    //Tổng số sector của ổ đĩa
-    for (int i = 47; i >= 40; i--)
-        temp = temp + HSector[i];
-    PBS.VolumeSize = convertHexToDec(temp);
-    cout << "+ Tong so sector la: 0x" << temp << " = " << PBS.VolumeSize << endl;
-
-    delete[] sector;
-    delete[] HSector;
+    cout << endl;
+    cout << "Bytes Per Sector : " << bytes_per_sector << endl;
+    cout << "Sectors Per Cluster : " << sectors_per_cluster << endl;
+    cout << "Sectors Per Track : " << sectors_per_track << endl;
+    cout << "Total Sectors : " << total_sectors << endl;
+    cout << "Cluster start of MFT : " << MFTStart << endl;
+    cout << "Cluster start of MFTMirror : " << MFTMirrorStart << endl;
+    cout << endl;
 }
