@@ -1,21 +1,17 @@
 #pragma once
 
-#include <iostream>
-#include <sstream>
-#include <windows.h>
+#include<iostream>
+#include<cstdlib>
+#include<stdio.h>
+#include<vector>
+#include<windows.h>
+#include<iomanip>
+#include<sstream>
+#include<map>
+#include<string>
 
 using namespace std;
 
-struct PartitionBootSector
-{
-    char OEM_ID[9];
-    int Byte_Per_Sector;
-    int Sector_Per_Cluster;
-    int SectorPerTrack;
-    int NumberOfHead;
-    int StartClusterOfMFT;
-    int MFT_entry_size;
-    int VolumeSize;
-};
-
-void infoNTFS();
+bool ReadSector(LPCWSTR drive, int readPoint, BYTE sector[512]);
+void Print_Sector(BYTE sector[512]);
+void Read_BPB(BYTE* sector, LPCWSTR disk);
