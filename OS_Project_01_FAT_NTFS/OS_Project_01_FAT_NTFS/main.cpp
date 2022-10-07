@@ -14,7 +14,7 @@ int main(int argc, char** argv)
     // NTFS
     wstring diskName;
     cout << "Enter Disk's Name: ";
-    wcin >> diskName;
+    wcin >> diskName; //lúc test là gõ ổ 'C' vào đúng k?
     diskName = L"\\\\.\\" + diskName + L":";
     LPCWSTR drive = diskName.c_str();
 
